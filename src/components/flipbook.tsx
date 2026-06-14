@@ -57,31 +57,39 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
   const [soundOn, setSoundOn] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [size, setSize] = useState({ w: 380, h: 540 });
   const containerRef = useRef<HTMLDivElement>(null);
   const flipRef = useRef<any>(null);
   const playTurn = usePageTurnSound(soundOn);
 
-  // Responsive sizing for two-page spread
+  // Responsive sizing — single portrait page on mobile, two-page spread on desktop
   useEffect(() => {
     function measure() {
-      const availW = window.innerWidth;
-      const availH = window.innerHeight - 120;
+      const vp = window.visualViewport;
+      const availW = vp?.width ?? window.innerWidth;
+      const availH = vp?.height ?? window.innerHeight;
       const mobile = availW < 640;
+      setIsMobile(mobile);
+
       if (mobile) {
-        const w = Math.min(availW - 64, 340);
-        const h = Math.min(w * 1.42, availH);
-        setSize({ w: Math.floor(w), h: Math.floor(h) });
+        const chrome = 108;
+        const w = Math.min(availW - 48, 360);
+        const h = Math.min(Math.floor(w * 1.42), availH - chrome);
+        setSize({ w: Math.floor(w), h: Math.max(280, h) });
       } else {
-        // Two pages side-by-side
         const w = Math.min((availW - 140) / 2, 420);
-        const h = Math.min(w * 1.42, availH);
+        const h = Math.min(w * 1.42, availH - 120);
         setSize({ w: Math.floor(w), h: Math.floor(h) });
       }
     }
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
   }, []);
 
   // Autoplay
@@ -130,24 +138,24 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background: "oklch(0.18 0.015 60 / 0.92)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
+      style={{ height: "100dvh", background: "oklch(0.18 0.015 60 / 0.92)", backdropFilter: "blur(8px)" }}
     >
-      <div className="relative flex w-full max-w-5xl flex-col items-center px-4 py-6">
+      <div className="relative flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-2 py-3 sm:px-4 sm:py-6 min-h-0">
         {/* Top bar */}
-        <div className="mb-4 flex w-full items-center justify-between">
+        <div className="mb-2 flex w-full shrink-0 items-center justify-between gap-2 sm:mb-4">
           <span className="text-xs tabular-nums" style={{ color: "oklch(0.80 0.02 75)" }}>
             {currentPage + 1} / {numPages || "—"}
           </span>
-          <div className="flex items-center gap-1">
-            {/* Zoom controls */}
-            <Button size="icon" variant="ghost" className="rounded-full text-white/60 hover:text-white" onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))} aria-label="Zoom out">
+          <div className="flex max-w-[70vw] items-center gap-0.5 overflow-x-auto sm:max-w-none sm:gap-1">
+            {/* Zoom controls — desktop only */}
+            <Button size="icon" variant="ghost" className="hidden rounded-full text-white/60 hover:text-white sm:inline-flex" onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))} aria-label="Zoom out">
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <Button size="icon" variant="ghost" className="rounded-full text-white/60 hover:text-white" onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))} aria-label="Zoom in">
+            <Button size="icon" variant="ghost" className="hidden rounded-full text-white/60 hover:text-white sm:inline-flex" onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))} aria-label="Zoom in">
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <div className="mx-1 h-4 w-px bg-white/20" />
+            <div className="mx-1 hidden h-4 w-px bg-white/20 sm:block" />
             <Button size="icon" variant="ghost" className="rounded-full text-white/60 hover:text-white" onClick={() => setAutoplay(v => !v)}>
               {autoplay ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </Button>
@@ -169,16 +177,17 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
         </div>
 
         {/* Title */}
-        <div className="mb-3 text-center">
-          <h2 className="font-display text-sm font-medium" style={{ color: "oklch(0.85 0.02 75)" }}>{title}</h2>
+        <div className="mb-2 shrink-0 text-center sm:mb-3">
+          <h2 className="font-display text-sm font-medium line-clamp-1 px-2" style={{ color: "oklch(0.85 0.02 75)" }}>{title}</h2>
         </div>
 
         {/* Book with spine */}
         <div
-          className="flipbook-shadow flipbook-book relative transition-transform duration-300"
-          style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
+          className={`flipbook-shadow flipbook-book relative max-w-full transition-transform duration-300 ${isMobile ? "flipbook-book--portrait" : ""}`}
+          style={{ transform: isMobile ? undefined : `scale(${zoom})`, transformOrigin: "center center" }}
         >
-          {/* Center spine / binding between left & right pages */}
+          {/* Center spine — desktop spread only */}
+          {!isMobile && (
           <div
             className="pointer-events-none absolute z-30"
             style={{
@@ -196,6 +205,7 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
               style={{ width: 2, background: "oklch(0.40 0.04 55 / 0.25)" }}
             />
           </div>
+          )}
 
           <Document
             file={pdfUrl}
@@ -204,7 +214,7 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
               onPageCount?.(n);
             }}
             loading={
-              <div className="flex items-center justify-center rounded-lg bg-card" style={{ width: size.w * 2, height: size.h }}>
+              <div className="flex items-center justify-center rounded-lg bg-card" style={{ width: isMobile ? size.w : size.w * 2, height: size.h }}>
                 <div className="flex flex-col items-center gap-3">
                   <BookOpen className="h-8 w-8 text-primary/40 animate-pulse" />
                   <span className="text-sm text-muted-foreground">Loading catalog…</span>
@@ -212,31 +222,32 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
               </div>
             }
             error={
-              <div className="flex items-center justify-center rounded-lg bg-card text-sm text-destructive" style={{ width: size.w * 2, height: size.h }}>
+              <div className="flex items-center justify-center rounded-lg bg-card text-sm text-destructive" style={{ width: isMobile ? size.w : size.w * 2, height: size.h }}>
                 Failed to load PDF
               </div>
             }
           >
             {numPages > 0 && (
               <HTMLFlipBook
+                key={`${size.w}x${size.h}-${isMobile ? "portrait" : "spread"}`}
                 ref={flipRef}
                 width={size.w}
                 height={size.h}
                 size="fixed"
-                minWidth={200}
+                minWidth={180}
                 maxWidth={500}
-                minHeight={280}
+                minHeight={260}
                 maxHeight={700}
                 showCover
                 mobileScrollSupport
                 flippingTime={600}
-                usePortrait={false}
+                usePortrait={isMobile}
                 startZIndex={0}
                 autoSize={false}
                 maxShadowOpacity={0.5}
                 drawShadow
                 useMouseEvents
-                swipeDistance={30}
+                swipeDistance={isMobile ? 50 : 30}
                 showPageCorners
                 disableFlipByClick={false}
                 clickEventForward
@@ -263,24 +274,24 @@ export function Flipbook({ pdfUrl, title, onClose, onPageCount }: FlipbookProps)
         {/* Navigation arrows */}
         <button
           onClick={() => flipRef.current?.pageFlip()?.flipPrev()}
-          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-3 transition-colors hover:bg-white/10 sm:left-4 sm:p-4"
+          className="absolute left-0 top-1/2 z-40 -translate-y-1/2 rounded-full p-2 transition-colors hover:bg-white/10 sm:left-4 sm:p-4"
           style={{ color: "oklch(0.90 0.01 80 / 0.6)" }}
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
+          <ChevronLeft className="h-5 w-5 sm:h-8 sm:w-8" />
         </button>
         <button
           onClick={() => flipRef.current?.pageFlip()?.flipNext()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-3 transition-colors hover:bg-white/10 sm:right-4 sm:p-4"
+          className="absolute right-0 top-1/2 z-40 -translate-y-1/2 rounded-full p-2 transition-colors hover:bg-white/10 sm:right-4 sm:p-4"
           style={{ color: "oklch(0.90 0.01 80 / 0.6)" }}
           aria-label="Next page"
         >
-          <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
+          <ChevronRight className="h-5 w-5 sm:h-8 sm:w-8" />
         </button>
 
         {/* Page dots */}
         {numPages > 0 && (
-          <div className="mt-5 flex items-center justify-center gap-1.5">
+          <div className="mt-3 flex shrink-0 items-center justify-center gap-1.5 sm:mt-5">
             {Array.from({ length: Math.min(numPages, 20) }, (_, i) => {
               const pageIdx = i * 2; // each dot represents a spread (2 pages)
               return (

@@ -260,3 +260,9 @@
   border-radius: 0 2px 2px 0;
   z-index: 5;
 }
+
+/* Single-page portrait mode on mobile — hide decorative spine edges */
+.flipbook-book--portrait::before,
+.flipbook-book--portrait::after {
+  display: none;
+}
