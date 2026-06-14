@@ -1,0 +1,262 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  --gradient-warm: linear-gradient(135deg, oklch(0.97 0.012 250) 0%, oklch(0.93 0.025 245) 100%);
+  --gradient-clay: linear-gradient(135deg, oklch(0.55 0.15 250) 0%, oklch(0.40 0.12 255) 100%);
+  --shadow-soft: 0 4px 24px -8px oklch(0.45 0.10 250 / 0.18);
+  --shadow-elegant: 0 24px 60px -20px oklch(0.40 0.10 250 / 0.30);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  /* Blue & White palette */
+  --background: oklch(0.985 0.005 250);          /* #f8fafc crisp white-blue */
+  --foreground: oklch(0.28 0.03 255);            /* deep navy text */
+  --card: oklch(1 0 0);                          /* pure white */
+  --card-foreground: oklch(0.28 0.03 255);
+  --popover: oklch(0.99 0.005 250);
+  --popover-foreground: oklch(0.28 0.03 255);
+  --primary: oklch(0.50 0.15 250);               /* #2563eb vibrant blue */
+  --primary-foreground: oklch(0.985 0.005 250);
+  --secondary: oklch(0.95 0.015 245);             /* #e8f0fe light blue */
+  --secondary-foreground: oklch(0.32 0.04 255);
+  --muted: oklch(0.95 0.015 245);
+  --muted-foreground: oklch(0.50 0.02 250);
+  --accent: oklch(0.60 0.14 250);                 /* #3b82f6 medium blue */
+  --accent-foreground: oklch(0.985 0.005 250);
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(0.985 0.005 250);
+  --border: oklch(0.91 0.015 245);
+  --input: oklch(0.93 0.015 245);
+  --ring: oklch(0.50 0.15 250);
+  --sidebar: oklch(0.97 0.01 250);
+  --sidebar-foreground: oklch(0.28 0.03 255);
+  --sidebar-primary: oklch(0.50 0.15 250);
+  --sidebar-primary-foreground: oklch(0.985 0.005 250);
+  --sidebar-accent: oklch(0.93 0.02 245);
+  --sidebar-accent-foreground: oklch(0.28 0.03 255);
+  --sidebar-border: oklch(0.91 0.015 245);
+  --sidebar-ring: oklch(0.50 0.15 250);
+}
+
+.dark {
+  --background: oklch(0.18 0.02 250);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.22 0.025 250);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.22 0.025 250);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.65 0.14 250);
+  --primary-foreground: oklch(0.18 0.02 250);
+  --secondary: oklch(0.28 0.025 250);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.28 0.025 250);
+  --muted-foreground: oklch(0.70 0.015 250);
+  --accent: oklch(0.50 0.14 250);
+  --accent-foreground: oklch(0.95 0.01 250);
+  --destructive: oklch(0.60 0.18 25);
+  --destructive-foreground: oklch(0.95 0.01 250);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.50 0.14 250);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "ss01";
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility glass {
+  background: color-mix(in oklab, var(--color-card) 75%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in oklab, var(--color-border) 80%, transparent);
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+@utility bg-gradient-warm {
+  background: var(--gradient-warm);
+}
+@utility bg-gradient-clay {
+  background: var(--gradient-clay);
+}
+
+/* Flipbook book spine shadow */
+.flipbook-shadow {
+  filter: drop-shadow(0 30px 50px oklch(0.30 0.08 250 / 0.35));
+}
+
+@keyframes book-open {
+  0% { opacity: 0; transform: perspective(1200px) rotateY(-20deg) scale(0.92); }
+  100% { opacity: 1; transform: perspective(1200px) rotateY(0) scale(1); }
+}
+.animate-book-open { animation: book-open 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* Interactive book page flutter */
+@keyframes page-flutter {
+  0%   { transform: rotateY(0deg); opacity: 0.7; }
+  30%  { transform: rotateY(-30deg); opacity: 0.5; }
+  60%  { transform: rotateY(-10deg); opacity: 0.3; }
+  100% { transform: rotateY(0deg); opacity: 0; }
+}
+
+/* Gentle pulse for interactive hints */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Fade in up on scroll */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Fade in scale */
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-fade-in-scale {
+  animation: fadeInScale 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Stagger delay helpers */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.20s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.30s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.40s; }
+.stagger-9 { animation-delay: 0.45s; }
+.stagger-10 { animation-delay: 0.50s; }
+.stagger-11 { animation-delay: 0.55s; }
+.stagger-12 { animation-delay: 0.60s; }
+
+/* Button press effect */
+.btn-press:active {
+  transform: scale(0.96);
+  transition: transform 0.1s;
+}
+
+/* Smooth card hover glow */
+.card-glow {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.card-glow:hover {
+  box-shadow: 0 8px 40px -12px oklch(0.50 0.15 250 / 0.25);
+  transform: translateY(-2px);
+}
+
+/* Interactive book hover lift */
+.interactive-book-wrapper {
+  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.interactive-book-wrapper:hover {
+  transform: translateY(-6px);
+}
+
+/* Flipbook enhanced book spine + edges */
+.flipbook-book {
+  position: relative;
+  border-radius: 4px;
+}
+.flipbook-book::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 2px;
+  bottom: 2px;
+  width: 12px;
+  background: linear-gradient(90deg, oklch(0.38 0.08 250), oklch(0.48 0.10 250));
+  border-radius: 3px 0 0 3px;
+  box-shadow: inset -1px 0 4px oklch(0 0 0 / 0.3);
+  z-index: 5;
+}
+.flipbook-book::after {
+  content: "";
+  position: absolute;
+  right: -8px;
+  top: 4px;
+  bottom: 4px;
+  width: 8px;
+  background: repeating-linear-gradient(
+    180deg,
+    oklch(0.96 0.01 250) 0px,
+    oklch(0.92 0.015 245) 1px,
+    oklch(0.96 0.01 250) 2px
+  );
+  border-right: 1px solid oklch(0.88 0.015 245);
+  border-radius: 0 2px 2px 0;
+  z-index: 5;
+}
