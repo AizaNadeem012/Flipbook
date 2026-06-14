@@ -202,33 +202,39 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [soundOn, setSoundOn] = useState(true);
   const [autoplay, setAutoplay] = useState(false);
   const [isFS, setIsFS] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [size, setSize] = useState({ w: 380, h: 540 });
   const playTurn = usePageTurnSound(soundOn);
   const total = bookPages.length;
 
-  // Responsive sizing
+  // Responsive sizing — single portrait page on mobile, two-page spread on desktop
   useEffect(() => {
     if (!open) return;
     function measure() {
-      const availW = window.innerWidth;
-      const availH = window.innerHeight - 120;
+      const vp = window.visualViewport;
+      const availW = vp?.width ?? window.innerWidth;
+      const availH = vp?.height ?? window.innerHeight;
       const mobile = availW < 640;
-      // Each page is portrait (taller than wide). Two pages side-by-side on desktop.
+      setIsMobile(mobile);
+
       if (mobile) {
-        // Single page on small screens
-        const w = Math.min(availW - 64, 340);
-        const h = Math.min(w * 1.42, availH);
-        setSize({ w: Math.floor(w), h: Math.floor(h) });
+        const chrome = 108;
+        const w = Math.min(availW - 48, 360);
+        const h = Math.min(Math.floor(w * 1.42), availH - chrome);
+        setSize({ w: Math.floor(w), h: Math.max(280, h) });
       } else {
-        // Two pages: each page width = half of available minus margins
         const w = Math.min((availW - 140) / 2, 380);
-        const h = Math.min(w * 1.42, availH);
+        const h = Math.min(w * 1.42, availH - 120);
         setSize({ w: Math.floor(w), h: Math.floor(h) });
       }
     }
     measure();
     window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+    };
   }, [open]);
 
   // Autoplay
@@ -267,13 +273,13 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background: "oklch(0.18 0.015 60 / 0.92)", backdropFilter: "blur(8px)" }}
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden"
+      style={{ height: "100dvh", background: "oklch(0.18 0.015 60 / 0.92)", backdropFilter: "blur(8px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div ref={containerRef} className="relative flex w-full max-w-5xl flex-col items-center px-4 py-6">
+      <div ref={containerRef} className="relative flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-2 py-3 sm:px-4 sm:py-6 min-h-0">
         {/* Top bar */}
-        <div className="mb-4 flex w-full items-center justify-between">
+        <div className="mb-2 flex w-full shrink-0 items-center justify-between gap-2 sm:mb-4">
           <span className="text-xs tabular-nums" style={{ color: "oklch(0.80 0.015 245)" }}>
             {page + 1} / {total}
           </span>
@@ -293,9 +299,10 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
         </div>
 
-        {/* Flipbook — two-page spread (landscape book feel) */}
-        <div className="flipbook-shadow flipbook-book relative">
-          {/* Center spine / binding between left & right pages */}
+        {/* Flipbook — portrait single page on mobile, spread on desktop */}
+        <div className={`flipbook-shadow flipbook-book relative max-w-full ${isMobile ? "flipbook-book--portrait" : ""}`}>
+          {/* Center spine — desktop spread only */}
+          {!isMobile && (
           <div
             className="pointer-events-none absolute z-30"
             style={{
@@ -317,25 +324,27 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
               }}
             />
           </div>
+          )}
           <HTMLFlipBook
+            key={`${size.w}x${size.h}-${isMobile ? "portrait" : "spread"}`}
             ref={flipRef}
             width={size.w}
             height={size.h}
             size="fixed"
-            minWidth={200}
+            minWidth={180}
             maxWidth={500}
-            minHeight={280}
+            minHeight={260}
             maxHeight={700}
             showCover
             mobileScrollSupport
             flippingTime={600}
-            usePortrait={false}
+            usePortrait={isMobile}
             startZIndex={0}
             autoSize={false}
             maxShadowOpacity={0.5}
             drawShadow
             useMouseEvents
-            swipeDistance={30}
+            swipeDistance={isMobile ? 50 : 30}
             showPageCorners
             disableFlipByClick={false}
             clickEventForward
@@ -357,23 +366,23 @@ function BookModal({ open, onClose }: { open: boolean; onClose: () => void }) {
         {/* Navigation arrows */}
         <button
           onClick={() => flipRef.current?.pageFlip()?.flipPrev()}
-          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full p-3 transition-colors hover:bg-white/10 sm:left-4 sm:p-4"
+          className="absolute left-0 top-1/2 z-40 -translate-y-1/2 rounded-full p-2 transition-colors hover:bg-white/10 sm:left-4 sm:p-4"
           style={{ color: "oklch(0.90 0.01 80 / 0.6)" }}
           aria-label="Previous page"
         >
-          <ChevronLeft className="h-6 w-6 sm:h-8 sm:w-8" />
+          <ChevronLeft className="h-5 w-5 sm:h-8 sm:w-8" />
         </button>
         <button
           onClick={() => flipRef.current?.pageFlip()?.flipNext()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-3 transition-colors hover:bg-white/10 sm:right-4 sm:p-4"
+          className="absolute right-0 top-1/2 z-40 -translate-y-1/2 rounded-full p-2 transition-colors hover:bg-white/10 sm:right-4 sm:p-4"
           style={{ color: "oklch(0.90 0.01 80 / 0.6)" }}
           aria-label="Next page"
         >
-          <ChevronRight className="h-6 w-6 sm:h-8 sm:w-8" />
+          <ChevronRight className="h-5 w-5 sm:h-8 sm:w-8" />
         </button>
 
         {/* Page dots */}
-        <div className="mt-5 flex items-center justify-center gap-1.5">
+        <div className="mt-3 flex shrink-0 items-center justify-center gap-1.5 sm:mt-5">
           {Array.from({ length: total }, (_, i) => (
             <div
               key={i}
