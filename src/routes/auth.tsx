@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Book } from "lucide-react";
 import { toast } from "sonner";
-import { localSignIn, localSignUp, localCurrentUser } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 
 const search = z.object({ redirect: z.string().optional() });
 
@@ -16,7 +16,10 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — Folio" },
-      { name: "description", content: "Sign in or create an account to browse and manage catalogs." },
+      {
+        name: "description",
+        content: "Sign in or create an account to browse and manage catalogs.",
+      },
     ],
   }),
   component: AuthPage,
@@ -27,8 +30,9 @@ function AuthPage() {
   const { redirect } = useSearch({ from: "/auth" });
 
   useEffect(() => {
-    const user = localCurrentUser();
-    if (user) navigate({ to: redirect ?? "/", replace: true });
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: redirect ?? "/", replace: true });
+    });
   }, [navigate, redirect]);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -37,16 +41,36 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       if (mode === "signup") {
-        localSignUp(email, password, name || email.split("@")[0]);
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
+            data: { display_name: name || email.split("@")[0] },
+          },
+        });
+        if (error) throw error;
+        if (!data.session) {
+          toast.success("Account created! Check your email to confirm before signing in.");
+          setMode("signin");
+          return;
+        }
         toast.success("Account created!");
       } else {
-        const user = localSignIn(email, password);
-        if (!user) throw new Error("Invalid email or password");
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) {
+          if (error.message.toLowerCase().includes("email not confirmed")) {
+            throw new Error(
+              "Your email isn't confirmed yet. Please check your inbox for the confirmation link.",
+            );
+          }
+          throw error;
+        }
         toast.success("Welcome back");
       }
       navigate({ to: redirect ?? "/", replace: true });
@@ -73,12 +97,11 @@ function AuthPage() {
             Sign in or create an account to start reading.
           </p>
 
-          {/* Demo hint */}
-          <div className="mt-4 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">
-            <strong>Demo admin:</strong> admin@folio.app / admin123
-          </div>
-
-          <Tabs value={mode} onValueChange={(v) => setMode(v as "signin" | "signup")} className="mt-6">
+          <Tabs
+            value={mode}
+            onValueChange={(v) => setMode(v as "signin" | "signup")}
+            className="mt-6"
+          >
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">Sign in</TabsTrigger>
               <TabsTrigger value="signup">Sign up</TabsTrigger>
@@ -88,17 +111,37 @@ function AuthPage() {
               <TabsContent value="signup" className="space-y-4 mt-0">
                 <div className="space-y-1.5">
                   <Label htmlFor="name">Display name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    maxLength={80}
+                  />
                 </div>
               </TabsContent>
 
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} />
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  maxLength={255}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required minLength={6} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={6}
+                  maxLength={128}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
 
               <Button type="submit" className="w-full rounded-full" disabled={busy}>
