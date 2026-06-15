@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
-import { Book, FolderTree, Upload, LayoutDashboard, ArrowLeft } from "lucide-react";
+import { Book, FolderTree, Upload, LayoutDashboard, ArrowLeft, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminLayout,
@@ -36,6 +36,9 @@ function AdminLayout() {
             </Link>
             <Link to="/admin/catalogs" className="whitespace-nowrap rounded-full px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "rounded-full px-3 py-1.5 bg-secondary" }}>
               <Upload className="mr-1 inline h-3.5 w-3.5" /><span className="hidden sm:inline">Catalogs</span>
+            </Link>
+            <Link to="/admin/settings" className="whitespace-nowrap rounded-full px-3 py-1.5 hover:bg-secondary" activeProps={{ className: "rounded-full px-3 py-1.5 bg-secondary" }}>
+              <KeyRound className="mr-1 inline h-3.5 w-3.5" /><span className="hidden sm:inline">Settings</span>
             </Link>
           </nav>
         </div>
