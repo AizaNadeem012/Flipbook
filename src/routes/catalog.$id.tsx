@@ -4,14 +4,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, Book, BookOpen, Sparkles, Eye, Download,
-  Maximize, ChevronRight, Trash2,
+  Maximize, ChevronRight,
 } from "lucide-react";
 import { Flipbook } from "@/components/flipbook";
-import { getCatalog, incrementViewCount, deleteCatalog } from "@/lib/store";
-import { getFileUrl, deleteFile } from "@/lib/file-store";
+import { getCatalog } from "@/lib/store";
+import { incrementCatalogView } from "@/lib/catalogs.functions";
+import { resolveStorageUrl } from "@/lib/storage";
 import { SiteHeader } from "@/components/site-header";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/catalog/$id")({
   ssr: false,
@@ -27,59 +26,36 @@ export const Route = createFileRoute("/catalog/$id")({
 function CatalogViewer() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const qc = useQueryClient();
   const [bookOpen, setBookOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: catalog, isLoading } = useQuery({
     queryKey: ["catalog", id],
     queryFn: () => getCatalog(id),
   });
 
-  // Track view
   useQuery({
     queryKey: ["catalog-view", id],
-    queryFn: () => { incrementViewCount(id); return true; },
+    queryFn: async () => {
+      await incrementCatalogView({ data: { id } });
+      return true;
+    },
     staleTime: Infinity,
     enabled: !!catalog,
   });
 
-  // Load PDF and cover from IndexedDB
   useEffect(() => {
     if (!catalog) return;
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const pdf = await getFileUrl(catalog!.pdf_path);
-        if (cancelled) return;
-        if (pdf) {
-          setPdfUrl(pdf);
-        } else {
-          // Fallback: might be a direct URL (old data)
-          if (catalog!.pdf_path.startsWith("http") || catalog!.pdf_path.startsWith("blob:")) {
-            setPdfUrl(catalog!.pdf_path);
-          } else {
-            setLoadError(true);
-          }
-        }
-
-        if (catalog!.cover_path) {
-          const cover = await getFileUrl(catalog!.cover_path);
-          if (!cancelled) {
-            setCoverUrl(cover ?? catalog!.cover_path);
-          }
-        }
-      } catch {
-        if (!cancelled) setLoadError(true);
-      }
+    const pdf = resolveStorageUrl(catalog.pdf_path);
+    if (pdf) {
+      setPdfUrl(pdf);
+      setLoadError(false);
+    } else {
+      setLoadError(true);
     }
-
-    load();
-    return () => { cancelled = true; };
+    setCoverUrl(resolveStorageUrl(catalog.cover_path));
   }, [catalog]);
 
   // Lock body scroll when book is open
@@ -281,40 +257,9 @@ function CatalogViewer() {
                 <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full border-border/80 bg-card/60">
-                <a href={pdfUrl} download={`${catalog.title}.pdf`}>
+                <a href={pdfUrl} download={`${catalog.title}.pdf`} target="_blank" rel="noreferrer">
                   <Download className="mr-2 h-4 w-4" /> Download PDF
                 </a>
-              </Button>
-              <Button
-                size="lg"
-                variant={confirmDelete ? "destructive" : "outline"}
-                className={`rounded-full border-border/80 ${confirmDelete ? "scale-105" : "bg-card/60"}`}
-                onClick={async () => {
-                  if (!confirmDelete) {
-                    setConfirmDelete(true);
-                    setTimeout(() => setConfirmDelete(false), 3000);
-                    return;
-                  }
-                  try {
-                    if (catalog.pdf_path && !catalog.pdf_path.startsWith("http") && !catalog.pdf_path.startsWith("blob:")) {
-                      await deleteFile(catalog.pdf_path).catch(() => {});
-                    }
-                    if (catalog.cover_path && !catalog.cover_path.startsWith("http") && !catalog.cover_path.startsWith("blob:") && !catalog.cover_path.startsWith("data:")) {
-                      await deleteFile(catalog.cover_path).catch(() => {});
-                    }
-                    deleteCatalog(id);
-                    qc.invalidateQueries({ queryKey: ["catalogs"] });
-                    qc.invalidateQueries({ queryKey: ["landing-recent"] });
-                    qc.invalidateQueries({ queryKey: ["landing-stats"] });
-                    toast.success(`Deleted "${catalog.title}"`);
-                    navigate({ to: "/browse" });
-                  } catch {
-                    toast.error("Failed to delete");
-                  }
-                  setConfirmDelete(false);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> {confirmDelete ? "Confirm Delete" : "Delete"}
               </Button>
             </div>
 

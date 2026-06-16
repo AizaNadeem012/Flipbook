@@ -2,7 +2,7 @@ import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site-header";
 import {
-  Book, Sparkles, Zap, Layers, Search, Upload, ArrowRight,
+  Book, Sparkles, Zap, Layers, Search, ArrowRight,
   BookOpen, Eye, Monitor, Smartphone, Download, FolderTree,
   Maximize, Play, Volume2, ChevronRight,
 } from "lucide-react";
@@ -10,9 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { InteractiveBook } from "@/components/interactive-book";
 import { CatalogCover } from "@/components/catalog-cover";
-import { getCatalogs, getCategories } from "@/lib/store";
+import { getCatalogs, getCategories, type Catalog } from "@/lib/store";
 import { useState } from "react";
-import { UploadDialog } from "@/components/upload-dialog";
 import { useInView } from "@/hooks/use-in-view";
 
 export const Route = createFileRoute("/")({
@@ -27,20 +26,19 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const [searchQ, setSearchQ] = useState("");
-  const [uploadOpen, setUploadOpen] = useState(false);
   const router = useRouter();
 
   const { data: stats } = useQuery({
     queryKey: ["landing-stats"],
-    queryFn: () => ({
-      catalogs: getCatalogs().length,
-      categories: getCategories().length,
-    }),
+    queryFn: async () => {
+      const [catalogs, categories] = await Promise.all([getCatalogs(), getCategories()]);
+      return { catalogs: catalogs.length, categories: categories.length };
+    },
   });
 
   const { data: recent } = useQuery({
     queryKey: ["landing-recent"],
-    queryFn: () => getCatalogs().slice(0, 8),
+    queryFn: async () => (await getCatalogs()).slice(0, 8),
   });
 
   function handleSearch(e: React.FormEvent) {
@@ -70,7 +68,7 @@ function Landing() {
               <span className="italic text-primary">turn the page.</span>
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
-              Upload, browse, and read PDF catalogs with realistic page turns,
+              Browse and read PDF catalogs with realistic page turns,
               sound effects, and a paper-warm interface.
             </p>
           </div>
@@ -95,10 +93,7 @@ function Landing() {
 
           {/* Quick actions */}
           <div className="mx-auto mt-6 flex max-w-xl flex-wrap items-center justify-center gap-3">
-            <Button size="lg" className="rounded-full shadow-soft" onClick={() => setUploadOpen(true)}>
-              <Upload className="mr-2 h-4 w-4" /> Upload PDF
-            </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full border-border/80 bg-card/60">
+            <Button asChild size="lg" className="rounded-full shadow-soft">
               <Link to="/browse">
                 <BookOpen className="mr-2 h-4 w-4" /> Browse Catalogs
               </Link>
@@ -134,19 +129,15 @@ function Landing() {
       <FeaturesSection />
       
       {/* RECENT CATALOGS */}
-      <RecentCatalogsSection recent={recent ?? []} onUpload={() => setUploadOpen(true)} />
+      <RecentCatalogsSection recent={recent ?? []} />
       
       {/* HOW IT WORKS */}
       <HowItWorksSection />
 
       {/* Footer */}
       <footer className="border-t border-border/60 py-10 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Folio — Digital Catalog Reader ·{" "}
-        <button onClick={() => setUploadOpen(true)} className="text-primary hover:underline">Upload a catalog</button>
+        © {new Date().getFullYear()} Folio — Digital Catalog Reader
       </footer>
-
-      {/* Upload dialog */}
-      <UploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </div>
   );
 }
@@ -157,7 +148,7 @@ function FeaturesSection() {
   const features = [
     { icon: BookOpen, title: "Realistic Page Turn", desc: "Smooth 3D flips with shadows, swipe, and keyboard navigation." },
     { icon: Volume2, title: "Page Turn Sound", desc: "Realistic audio feedback on every page flip — toggle on/off." },
-    { icon: Upload, title: "Easy PDF Upload", desc: "Drag & drop or browse — upload catalogs in seconds." },
+    { icon: FolderTree, title: "Organized Categories", desc: "Browse catalogs grouped by category and subcategory." },
     { icon: Search, title: "Quick Search", desc: "Find any catalog by title or description instantly." },
     { icon: Layers, title: "Nested Categories", desc: "Unlimited subcategories keep everything organized." },
     { icon: Maximize, title: "Fullscreen Mode", desc: "Distraction-free reading in fullscreen." },
@@ -193,14 +184,14 @@ function FeaturesSection() {
 }
 
 /* ── Animated Recent Catalogs ── */
-function RecentCatalogsSection({ recent, onUpload }: { recent: ReturnType<typeof getCatalogs>; onUpload: () => void }) {
+function RecentCatalogsSection({ recent }: { recent: Catalog[] }) {
   const { ref, inView } = useInView();
   return (
     <section ref={ref} className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
       <div className={`mb-6 flex items-end justify-between transition-all duration-700 ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
         <div>
           <h2 className="font-display text-3xl">Recent Catalogs</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Recently uploaded — start reading now.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Latest catalogs — start reading now.</p>
         </div>
         <Link to="/browse" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
           View all <ChevronRight className="h-4 w-4" />
@@ -231,9 +222,9 @@ function RecentCatalogsSection({ recent, onUpload }: { recent: ReturnType<typeof
             <Book className="h-8 w-8 text-primary/50" />
           </div>
           <h3 className="mt-4 font-display text-xl">No catalogs yet</h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">Upload your first PDF catalog to get started!</p>
-          <Button className="mt-5 rounded-full btn-press" size="lg" onClick={onUpload}>
-            <Upload className="mr-2 h-4 w-4" /> Upload Your First Catalog
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm">Check back soon — new catalogs will appear here.</p>
+          <Button asChild className="mt-5 rounded-full btn-press" size="lg">
+            <Link to="/browse">Browse Catalogs</Link>
           </Button>
         </div>
       )}
@@ -251,7 +242,7 @@ function HowItWorksSection() {
         <p className="mt-2 text-center text-muted-foreground">Three simple steps to start reading.</p>
         <div className="mt-10 grid gap-8 sm:grid-cols-3">
           {[
-            { step: "1", icon: Upload, title: "Upload", desc: "Drop your PDF catalog or click to browse. Add a title and cover image." },
+            { step: "1", icon: Search, title: "Browse", desc: "Explore catalogs by category or search by name." },
             { step: "2", icon: BookOpen, title: "Open", desc: "Click any catalog to open it in the realistic flipbook reader." },
             { step: "3", icon: Book, title: "Read", desc: "Flip pages, zoom in, go fullscreen, or enable auto-play. Enjoy!" },
           ].map((s, i) => (

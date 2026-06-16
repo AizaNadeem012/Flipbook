@@ -25,23 +25,25 @@ function CategoriesAdmin() {
 
   function create() {
     if (!name.trim()) return;
-    try {
-      addCategory(name.trim(), parent === "none" ? null : parent);
-      toast.success("Category added");
-      setName("");
-      qc.invalidateQueries({ queryKey: ["admin-categories"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
+    addCategory(name.trim(), parent === "none" ? null : parent)
+      .then(() => {
+        toast.success("Category added");
+        setName("");
+        qc.invalidateQueries({ queryKey: ["admin-categories"] });
+        qc.invalidateQueries({ queryKey: ["categories"] });
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed"));
   }
 
   function remove(id: string) {
     if (!confirm("Delete this category and all subcategories?")) return;
-    deleteCategory(id);
-    toast.success("Deleted");
-    qc.invalidateQueries({ queryKey: ["admin-categories"] });
-    qc.invalidateQueries({ queryKey: ["categories"] });
+    deleteCategory(id)
+      .then(() => {
+        toast.success("Deleted");
+        qc.invalidateQueries({ queryKey: ["admin-categories"] });
+        qc.invalidateQueries({ queryKey: ["categories"] });
+      })
+      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed"));
   }
 
   return (

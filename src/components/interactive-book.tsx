@@ -407,7 +407,9 @@ export function InteractiveBook() {
   const [stats, setStats] = useState({ catalogs: 0, categories: 0 });
 
   useEffect(() => {
-    setStats({ catalogs: getCatalogs().length, categories: getCategories().length });
+    Promise.all([getCatalogs(), getCategories()]).then(([catalogs, categories]) => {
+      setStats({ catalogs: catalogs.length, categories: categories.length });
+    });
   }, []);
 
   // Lock body scroll when modal is open
@@ -554,7 +556,7 @@ export function InteractiveBook() {
             </Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="rounded-full border-border/80 bg-card/60 px-7">
-            <Link to="/auth">Sign in</Link>
+            <Link to="/search" search={{ q: "" }}>Search catalogs</Link>
           </Button>
         </div>
 

@@ -25,7 +25,7 @@ function SearchPage() {
 
   const { data } = useQuery({
     queryKey: ["search", q],
-    queryFn: () => (q.trim() ? searchCatalogs(q) : []),
+    queryFn: () => searchCatalogs(q),
   });
 
   return (

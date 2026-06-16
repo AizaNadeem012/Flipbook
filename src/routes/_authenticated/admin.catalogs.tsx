@@ -14,8 +14,8 @@ import {
   getCategories,
   addCatalog,
   deleteCatalog,
-  type LocalCatalog,
 } from "@/lib/store";
+import { uploadToStorage, resolveStorageUrl } from "@/lib/storage";
 
 export const Route = createFileRoute("/_authenticated/admin/catalogs")({
   component: CatalogsAdmin,
@@ -48,20 +48,18 @@ function CatalogsAdmin() {
     }
     setBusy(true);
     try {
-      // Create blob URL for the PDF (local storage)
-      const pdfUrl = URL.createObjectURL(pdf);
-
-      let coverUrl: string | null = null;
+      const pdfPath = await uploadToStorage(pdf, "pdfs");
+      let coverPath: string | null = null;
       if (cover) {
-        coverUrl = URL.createObjectURL(cover);
+        coverPath = await uploadToStorage(cover, "covers");
       }
 
-      addCatalog({
+      await addCatalog({
         title: title.trim(),
         description: description.trim() || undefined,
         category_id: category === "none" ? null : category,
-        pdf_path: pdfUrl,
-        cover_path: coverUrl,
+        pdf_path: pdfPath,
+        cover_path: coverPath,
         file_size: pdf.size,
         created_by: user?.id ?? undefined,
       });
@@ -71,6 +69,7 @@ function CatalogsAdmin() {
       setDescription("");
       setPdf(null);
       setCover(null);
+      setCategory("none");
       qc.invalidateQueries({ queryKey: ["admin-catalogs"] });
       qc.invalidateQueries({ queryKey: ["catalogs"] });
       qc.invalidateQueries({ queryKey: ["admin-stats"] });
@@ -83,12 +82,19 @@ function CatalogsAdmin() {
     }
   }
 
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!confirm("Delete this catalog?")) return;
-    deleteCatalog(id);
-    toast.success("Deleted");
-    qc.invalidateQueries({ queryKey: ["admin-catalogs"] });
-    qc.invalidateQueries({ queryKey: ["admin-stats"] });
+    try {
+      await deleteCatalog(id);
+      toast.success("Deleted");
+      qc.invalidateQueries({ queryKey: ["admin-catalogs"] });
+      qc.invalidateQueries({ queryKey: ["catalogs"] });
+      qc.invalidateQueries({ queryKey: ["admin-stats"] });
+      qc.invalidateQueries({ queryKey: ["landing-stats"] });
+      qc.invalidateQueries({ queryKey: ["landing-recent"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    }
   }
 
   return (
@@ -166,7 +172,7 @@ function CatalogsAdmin() {
             <div key={c.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 hover:bg-secondary/40 transition-colors">
               <div className="flex items-center gap-3 min-w-0">
                 {c.cover_path ? (
-                  <img src={c.cover_path} alt="" className="h-12 w-9 shrink-0 rounded object-cover shadow-sm" />
+                  <img src={resolveStorageUrl(c.cover_path) ?? ""} alt="" className="h-12 w-9 shrink-0 rounded object-cover shadow-sm" />
                 ) : (
                   <div className="grid h-12 w-9 shrink-0 place-items-center rounded bg-gradient-clay/30">
                     <Book className="h-4 w-4 text-primary/60" />

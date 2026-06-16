@@ -1,29 +1,23 @@
 import { useState, useEffect } from "react";
 import { Book } from "lucide-react";
-import { getFileUrl } from "@/lib/file-store";
+import { resolveStorageUrl } from "@/lib/storage";
 
 /**
- * Renders a catalog cover image, resolving IndexedDB keys to blob URLs.
- * Falls back to a placeholder icon if no cover is available.
+ * Renders a catalog cover image from Supabase Storage or a direct URL.
  */
-export function CatalogCover({ coverPath, title, className }: { coverPath: string | null; title: string; className?: string }) {
+export function CatalogCover({
+  coverPath,
+  title,
+  className,
+}: {
+  coverPath: string | null;
+  title: string;
+  className?: string;
+}) {
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!coverPath) { setUrl(null); return; }
-
-    // Check if it's already a valid URL
-    if (coverPath.startsWith("http") || coverPath.startsWith("blob:") || coverPath.startsWith("data:")) {
-      setUrl(coverPath);
-      return;
-    }
-
-    // Otherwise treat as IndexedDB key
-    let cancelled = false;
-    getFileUrl(coverPath).then((resolved) => {
-      if (!cancelled) setUrl(resolved);
-    });
-    return () => { cancelled = true; };
+    setUrl(resolveStorageUrl(coverPath));
   }, [coverPath]);
 
   if (!url) {
@@ -34,5 +28,7 @@ export function CatalogCover({ coverPath, title, className }: { coverPath: strin
     );
   }
 
-  return <img src={url} alt={title} className={`h-full w-full object-cover ${className ?? ""}`} loading="lazy" />;
+  return (
+    <img src={url} alt={title} className={`h-full w-full object-cover ${className ?? ""}`} loading="lazy" />
+  );
 }

@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { getCatalogs, getCategories } from "@/lib/store";
+import { changePassword } from "@/lib/auth";
 import { Book, FolderTree, Eye, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -10,9 +12,8 @@ export const Route = createFileRoute("/_authenticated/admin/")({
 function Dashboard() {
   const { data } = useQuery({
     queryKey: ["admin-stats"],
-    queryFn: () => {
-      const catalogs = getCatalogs();
-      const categories = getCategories();
+    queryFn: async () => {
+      const [catalogs, categories] = await Promise.all([getCatalogs(), getCategories()]);
       const totalViews = catalogs.reduce((s, c) => s + (c.view_count ?? 0), 0);
       return {
         categories: categories.length,
@@ -28,6 +29,25 @@ function Dashboard() {
     { label: "Categories", value: data?.categories ?? 0, icon: FolderTree },
     { label: "Total views", value: data?.totalViews ?? 0, icon: Eye },
   ];
+
+  const [newPassword, setNewPassword] = useState("");
+  const [changing, setChanging] = useState(false);
+
+  async function handlePasswordChange() {
+    if (!newPassword || newPassword.length < 6) {
+      return toast.error("Enter a new password (at least 6 characters)");
+    }
+    setChanging(true);
+    try {
+      await changePassword(newPassword);
+      toast.success("Password changed successfully");
+      setNewPassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Password change failed");
+    } finally {
+      setChanging(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -46,6 +66,7 @@ function Dashboard() {
           </div>
         ))}
       </div>
+
       <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <h3 className="font-display text-lg mb-4 flex items-center gap-2"><Clock className="h-4 w-4" />Recent uploads</h3>
         <div className="space-y-2">
@@ -58,6 +79,28 @@ function Dashboard() {
           ))}
         </div>
       </div>
+
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <h3 className="font-display text-lg mb-4">Account</h3>
+        <div className="space-y-3 max-w-md">
+          <div>
+            <label className="text-xs font-medium">Change password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New password (min 6 chars)"
+              className="mt-2 w-full rounded-xl border px-3 py-2"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handlePasswordChange} disabled={changing} className="rounded-full bg-primary px-4 py-2 text-white">
+              {changing ? "Changing…" : "Change password"}
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

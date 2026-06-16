@@ -1,22 +1,20 @@
 import { createFileRoute, useNavigate, useSearch, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Book } from "lucide-react";
+import { Book, Shield } from "lucide-react";
 import { toast } from "sonner";
-import { localSignIn, localSignUp, localCurrentUser } from "@/lib/store";
-
-const search = z.object({ redirect: z.string().optional() });
+import { bootstrapFirstAdmin, getCurrentAppUser, hasAnyAdmin, signInAdmin } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: search,
+  validateSearch: (search: Record<string, unknown>) => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
   head: () => ({
     meta: [
-      { title: "Sign in — Folio" },
-      { name: "description", content: "Sign in or create an account to browse and manage catalogs." },
+      { title: "Admin sign in — Folio" },
+      { name: "description", content: "Sign in as admin to manage catalogs and categories." },
     ],
   }),
   component: AuthPage,
@@ -26,36 +24,55 @@ function AuthPage() {
   const navigate = useNavigate();
   const { redirect } = useSearch({ from: "/auth" });
 
-  useEffect(() => {
-    const user = localCurrentUser();
-    if (user) navigate({ to: redirect ?? "/", replace: true });
-  }, [navigate, redirect]);
-
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(true);
+  const [setupChecked, setSetupChecked] = useState(false);
+  const [setupWarning, setSetupWarning] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    getCurrentAppUser().then((user) => {
+      if (user?.roles.includes("admin")) {
+        navigate({ to: redirect ?? "/admin", replace: true });
+      }
+    });
+  }, [navigate, redirect]);
+
+  useEffect(() => {
+    hasAnyAdmin()
+      .then((exists) => {
+        setNeedsSetup(!exists);
+        setSetupWarning(null);
+      })
+      .catch((err) => {
+        setNeedsSetup(true);
+        setSetupWarning(err instanceof Error ? err.message : "Could not check admin status");
+      })
+      .finally(() => setSetupChecked(true));
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        localSignUp(email, password, name || email.split("@")[0]);
-        toast.success("Account created!");
+      if (needsSetup) {
+        await bootstrapFirstAdmin(email, password);
+        toast.success("Admin account created");
       } else {
-        const user = localSignIn(email, password);
-        if (!user) throw new Error("Invalid email or password");
-        toast.success("Welcome back");
+        await signInAdmin(email, password);
+        toast.success("Welcome back, admin");
       }
-      navigate({ to: redirect ?? "/", replace: true });
+      navigate({ to: redirect ?? "/admin", replace: true });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Authentication failed");
+      const message = err instanceof Error ? err.message : "Authentication failed";
+      toast.error(message);
     } finally {
       setBusy(false);
     }
   }
+
+  const isSetup = needsSetup;
 
   return (
     <div className="min-h-screen bg-gradient-warm">
@@ -68,48 +85,69 @@ function AuthPage() {
         </Link>
 
         <div className="rounded-2xl border border-border bg-card p-7 shadow-elegant">
-          <h1 className="font-display text-3xl">Welcome</h1>
+          <div className="flex items-center gap-2 text-primary">
+            <Shield className="h-5 w-5" />
+            <span className="text-xs font-medium uppercase tracking-widest">Admin only</span>
+          </div>
+          <h1 className="mt-3 font-display text-3xl">{isSetup ? "Create admin" : "Sign in"}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sign in or create an account to start reading.
+            {isSetup
+              ? "First-time setup — create the admin account for this site."
+              : "Manage catalogs and categories. Visitors can browse without signing in."}
           </p>
 
-          {/* Demo hint */}
-          <div className="mt-4 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">
-            <strong>Demo admin:</strong> admin@folio.app / admin123
-          </div>
+          {setupWarning ? (
+            <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+              {setupWarning}
+            </p>
+          ) : null}
 
-          <Tabs value={mode} onValueChange={(v) => setMode(v as "signin" | "signup")} className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign in</TabsTrigger>
-              <TabsTrigger value="signup">Sign up</TabsTrigger>
-            </TabsList>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={255}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                autoComplete={isSetup ? "new-password" : "current-password"}
+                minLength={6}
+                maxLength={128}
+                placeholder="At least 6 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-              <TabsContent value="signup" className="space-y-4 mt-0">
-                <div className="space-y-1.5">
-                  <Label htmlFor="name">Display name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
-                </div>
-              </TabsContent>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" required minLength={6} maxLength={128} value={password} onChange={(e) => setPassword(e.target.value)} />
-              </div>
-
-              <Button type="submit" className="w-full rounded-full" disabled={busy}>
-                {busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}
-              </Button>
-            </form>
-          </Tabs>
+            <Button type="submit" className="w-full rounded-full" disabled={busy}>
+              {busy
+                ? "Please wait…"
+                : !setupChecked
+                  ? "Checking…"
+                  : isSetup
+                    ? "Create admin account"
+                    : "Sign in as admin"}
+            </Button>
+          </form>
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          By continuing you agree to our terms of use.
+          <Link to="/browse" className="text-primary hover:underline">
+            Browse catalogs
+          </Link>{" "}
+          as a visitor — no account needed.
         </p>
       </div>
     </div>

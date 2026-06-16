@@ -1,12 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site-header";
 import { CatalogCover } from "@/components/catalog-cover";
-import { Book, ChevronRight, Folder, Trash2 } from "lucide-react";
+import { Book, ChevronRight, Folder } from "lucide-react";
 import { useState, useMemo } from "react";
-import { getCatalogs, getCategories, deleteCatalog, type LocalCategory, type LocalCatalog } from "@/lib/store";
-import { deleteFile } from "@/lib/file-store";
-import { toast } from "sonner";
+import { getCatalogs, getCategories, type LocalCategory, type LocalCatalog } from "@/lib/store";
 import { useInView } from "@/hooks/use-in-view";
 
 export const Route = createFileRoute("/browse")({
@@ -21,7 +19,6 @@ export const Route = createFileRoute("/browse")({
 
 function BrowsePage() {
   const [selected, setSelected] = useState<string | null>(null);
-  const qc = useQueryClient();
 
   const { data: categories } = useQuery({
     queryKey: ["categories"],
@@ -30,8 +27,8 @@ function BrowsePage() {
 
   const { data: catalogs } = useQuery({
     queryKey: ["catalogs", selected],
-    queryFn: () => {
-      const all = getCatalogs();
+    queryFn: async () => {
+      const all = await getCatalogs();
       if (!selected) return all;
       const ids = collectDescendants(categories ?? [], selected);
       return all.filter((c) => c.category_id && ids.includes(c.category_id));
@@ -146,7 +143,7 @@ function TreeNode({ node, selected, onSelect, depth }: { node: Node; selected: s
   );
 }
 
-function CatalogCard({ c, index }: { c: LocalCatalog; onDelete?: () => void; index?: number }) {
+function CatalogCard({ c, index }: { c: LocalCatalog; index?: number }) {
   const { ref, inView } = useInView();
   return (
     <div ref={ref} className={`group relative ${inView ? `animate-fade-in-up stagger-${Math.min((index ?? 0) + 1, 12)}` : "opacity-0"}`}>
@@ -159,53 +156,6 @@ function CatalogCard({ c, index }: { c: LocalCatalog; onDelete?: () => void; ind
           <p className="mt-0.5 text-xs text-muted-foreground">{c.page_count} pages</p>
         )}
       </Link>
-      <DeleteButton catalogId={c.id} title={c.title} pdfPath={c.pdf_path} coverPath={c.cover_path} />
     </div>
-  );
-}
-
-function DeleteButton({ catalogId, title, pdfPath, coverPath }: { catalogId: string; title: string; pdfPath: string; coverPath: string | null }) {
-  const qc = useQueryClient();
-  const [confirming, setConfirming] = useState(false);
-
-  async function handleDelete(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!confirming) {
-      setConfirming(true);
-      setTimeout(() => setConfirming(false), 3000);
-      return;
-    }
-    // Actually delete
-    try {
-      if (pdfPath && !pdfPath.startsWith("http") && !pdfPath.startsWith("blob:")) {
-        await deleteFile(pdfPath).catch(() => {});
-      }
-      if (coverPath && !coverPath.startsWith("http") && !coverPath.startsWith("blob:") && !coverPath.startsWith("data:")) {
-        await deleteFile(coverPath).catch(() => {});
-      }
-      deleteCatalog(catalogId);
-      qc.invalidateQueries({ queryKey: ["catalogs"] });
-      qc.invalidateQueries({ queryKey: ["landing-recent"] });
-      qc.invalidateQueries({ queryKey: ["landing-stats"] });
-      toast.success(`Deleted "${title}"`);
-    } catch {
-      toast.error("Failed to delete catalog");
-    }
-    setConfirming(false);
-  }
-
-  return (
-    <button
-      onClick={handleDelete}
-      className={`absolute right-2 top-2 z-10 rounded-full p-2 shadow-md transition-all duration-200 ${
-        confirming
-          ? "bg-destructive text-white scale-110"
-          : "bg-white/90 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive hover:text-white"
-      }`}
-      title={confirming ? "Click again to confirm" : "Delete catalog"}
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-    </button>
   );
 }
