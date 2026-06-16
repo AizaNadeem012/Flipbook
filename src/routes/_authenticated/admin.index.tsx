@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getCatalogs, getCategories } from "@/lib/store";
-import { changePassword } from "@/lib/auth";
+import { changePassword, changeEmail, useAuth } from "@/lib/auth";
+import { toast } from "sonner";
 import { Book, FolderTree, Eye, Clock } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -32,6 +33,13 @@ function Dashboard() {
 
   const [newPassword, setNewPassword] = useState("");
   const [changing, setChanging] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.email) setNewEmail(user.email);
+  }, [user]);
 
   async function handlePasswordChange() {
     if (!newPassword || newPassword.length < 6) {
@@ -46,6 +54,21 @@ function Dashboard() {
       toast.error(err instanceof Error ? err.message : "Password change failed");
     } finally {
       setChanging(false);
+    }
+  }
+
+  async function handleEmailChange() {
+    if (!newEmail || !newEmail.includes("@")) {
+      return toast.error("Enter a valid email");
+    }
+    setChangingEmail(true);
+    try {
+      await changeEmail(newEmail);
+      toast.success("Email updated. Check your inbox to confirm the new address.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Email change failed");
+    } finally {
+      setChangingEmail(false);
     }
   }
 
@@ -83,6 +106,21 @@ function Dashboard() {
       <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
         <h3 className="font-display text-lg mb-4">Account</h3>
         <div className="space-y-3 max-w-md">
+          <div>
+            <label className="text-xs font-medium">Change email</label>
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="New email"
+              className="mt-2 w-full rounded-xl border px-3 py-2"
+            />
+            <div className="mt-2">
+              <button onClick={handleEmailChange} disabled={changingEmail} className="rounded-full bg-secondary px-4 py-2 text-white">
+                {changingEmail ? "Updating…" : "Change email"}
+              </button>
+            </div>
+          </div>
           <div>
             <label className="text-xs font-medium">Change password</label>
             <input

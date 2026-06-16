@@ -121,6 +121,11 @@ export async function changePassword(newPassword: string): Promise<void> {
   if (error) throw new Error(error.message ?? "Failed to change password");
 }
 
+export async function changeEmail(newEmail: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ email: newEmail });
+  if (error) throw new Error(error.message ?? "Failed to change email");
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
