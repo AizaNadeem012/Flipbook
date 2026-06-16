@@ -66,7 +66,12 @@ function Dashboard() {
       await changeEmail(newEmail);
       toast.success("Email updated. Check your inbox to confirm the new address.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Email change failed");
+      const message = err instanceof Error ? err.message : "Email change failed";
+      if (/rate limit/i.test(message)) {
+        toast.error("Too many email requests. Wait a bit (about an hour) and try again.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setChangingEmail(false);
     }
@@ -116,7 +121,7 @@ function Dashboard() {
               className="mt-2 w-full rounded-xl border px-3 py-2"
             />
             <div className="mt-2">
-              <button onClick={handleEmailChange} disabled={changingEmail} className="rounded-full bg-secondary px-4 py-2 text-white">
+              <button onClick={handleEmailChange} disabled={changingEmail} className="rounded-full bg-primary px-4 py-2 text-white">
                 {changingEmail ? "Updating…" : "Change email"}
               </button>
             </div>
